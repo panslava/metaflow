@@ -356,3 +356,71 @@ def scrub(
             "either none exist or they have not finished yet.\n"
             "If you know the task has finished, you can supply --include-not-done to force scrub it."
         )
+
+
+@logs.command(help="Testing log streaming")
+@click.argument("input-path")
+@click.pass_obj
+def stream(obj, input_path):
+    types = set()
+    # set manually
+    types.update(("stdout", "stderr"))
+    streams = list(types)
+
+    # Pathspec can either be run_id/step_name or run_id/step_name/task_id.
+    parts = input_path.split("/")
+    if len(parts) == 2:
+        run_id, step_name = parts
+        task_id = None
+    elif len(parts) == 3:
+        run_id, step_name, task_id = parts
+    else:
+        raise CommandException(
+            "input_path should either be run_id/step_name "
+            "or run_id/step_name/task_id"
+        )
+
+    datastore_set = TaskDataStoreSet(
+        obj.flow_datastore, run_id, steps=[step_name], allow_not_done=True
+    )
+    if task_id:
+        ds_list = [
+            TaskDataStore(
+                obj.flow_datastore,
+                run_id=run_id,
+                step_name=step_name,
+                task_id=task_id,
+                mode="r",
+                allow_not_done=True,
+            )
+        ]
+    else:
+        ds_list = list(datastore_set)  # get all tasks
+
+    if ds_list:
+
+        def echo_unicode(line, **kwargs):
+            click.secho(line.decode("UTF-8", errors="replace"), **kwargs)
+
+        # old style logs are non mflog-style logs
+        for ds in ds_list:
+            echo(
+                "Dumping logs of run_id=*{run_id}* "
+                "step=*{step}* task_id=*{task_id}*".format(
+                    run_id=ds.run_id, step=ds.step_name, task_id=ds.task_id
+                ),
+                fg="magenta",
+            )
+
+            for stream in streams:
+                echo(stream, bold=True)
+                for chunk in ds.stream_logs(LOG_SOURCES, stream, start=10, end=100):
+                    if any(data for _, data in chunk):
+                        # attempt to read new, mflog-style logs
+                        for line in mflog.merge_logs([blob for _, blob in chunk]):
+                            echo_unicode(line.msg)
+    else:
+        raise CommandException(
+            "No Tasks found at the given path -- "
+            "either none exist or none have started yet"
+        )

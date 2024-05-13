@@ -2,7 +2,13 @@ import os
 
 from itertools import starmap
 
-from metaflow.plugins.datatools.s3.s3 import S3, S3Client, S3PutObject, check_s3_deps
+from metaflow.plugins.datatools.s3.s3 import (
+    S3,
+    S3Client,
+    S3GetObject,
+    S3PutObject,
+    check_s3_deps,
+)
 from metaflow.metaflow_config import DATASTORE_SYSROOT_S3, ARTIFACT_LOCALROOT
 from metaflow.datastore.datastore_storage import CloseAfterUse, DataStoreStorage
 
@@ -142,5 +148,29 @@ class S3Storage(DataStoreStorage):
                         yield r.key, r.path, r.metadata
                     else:
                         yield r.key, None, None
+
+        return CloseAfterUse(iter_results(), closer=s3)
+
+    def stream_bytes(self, paths, chunk_size=1024):
+        if len(paths) == 0:
+            return CloseAfterUse(iter([]))
+
+        s3 = S3(
+            s3root=self.datastore_root,
+            tmproot=ARTIFACT_LOCALROOT,
+            external_client=self.s3_client,
+        )
+
+        def iter_results():
+            for p in paths:
+                max_size = s3.info(p).size
+                for chunk in range(max_size // chunk_size):
+                    g = S3GetObject(key=p, offset=chunk * chunk_size, length=chunk_size)
+                    r = s3.get(g, return_missing=True)
+                    if r.exists:
+                        yield r.key, r.path, r.metadata
+                    else:
+                        yield r.key, None, None
+                        break
 
         return CloseAfterUse(iter_results(), closer=s3)
