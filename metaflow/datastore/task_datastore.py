@@ -856,11 +856,15 @@ class TaskDataStore(object):
             output = {}
             for k, v in res.items():
                 buffered = buffer.get(k, b"")
-                val = buffered + v
+                val = buffered + v if v is not None else buffered
                 lines = val.decode("utf-8").split("\n")
-                if lines:
+                if len(lines) > 2:
                     output[k] = "\n".join(lines[:-1]).encode("utf-8")
                     buffer[k] = lines[-1].encode("utf-8")
+                elif len(lines) == 1 and val:
+                    # the chunk did not contain a newline,
+                    # instead the bytes for the logline continue to the next chunk
+                    buffer[k] = val
             yield [(paths[k], v if v is not None else b"") for k, v in output.items()]
 
     @require_mode(None)

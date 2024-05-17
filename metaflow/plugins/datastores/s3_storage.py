@@ -164,8 +164,10 @@ class S3Storage(DataStoreStorage):
         def iter_results():
             for p in paths:
                 max_size = s3.info(p).size
-                for chunk in range(max_size // chunk_size):
-                    g = S3GetObject(key=p, offset=chunk * chunk_size, length=chunk_size)
+                read_size = min(chunk_size, max_size)
+                splits = max_size // read_size if read_size < max_size else 1
+                for chunk in range(splits):
+                    g = S3GetObject(key=p, offset=chunk * read_size, length=read_size)
                     r = s3.get(g, return_missing=True)
                     if r.exists:
                         yield r.key, r.path, r.metadata

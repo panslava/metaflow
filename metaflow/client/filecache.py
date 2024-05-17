@@ -80,6 +80,18 @@ class FileCache(object):
         )
         return task_ds.load_logs(LOG_SOURCES, stream, attempt_override=attempt)
 
+    def logs_iterator(
+        self, ds_type, ds_root, stream, attempt, flow_name, run_id, step_name, task_id
+    ):
+        from metaflow.mflog import LOG_SOURCES
+
+        ds = self._get_flow_datastore(ds_type, ds_root, flow_name)
+
+        task_ds = ds.get_task_datastore(
+            run_id, step_name, task_id, data_metadata={"objects": {}, "info": {}}
+        )
+        return task_ds.stream_logs(LOG_SOURCES, stream, attempt_override=attempt)
+
     def get_log_legacy(
         self, ds_type, location, logtype, attempt, flow_name, run_id, step_name, task_id
     ):

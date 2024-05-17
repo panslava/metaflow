@@ -1450,6 +1450,34 @@ class Task(MetaflowObject):
         else:
             return self._log_size(stream, meta_dict)
 
+    def stream_loglines(
+        self,
+        stream: str,
+        as_unicode: bool = True,
+        meta_dict: Optional[Dict[str, Any]] = None,
+    ):
+        from metaflow.mflog.mflog import merge_logs
+
+        global filecache
+
+        if meta_dict is None:
+            meta_dict = self.metadata_dict
+        ds_type = meta_dict.get("ds-type")
+        ds_root = meta_dict.get("ds-root")
+        if ds_type is None or ds_root is None:
+            yield None, ""
+            return
+        if filecache is None:
+            filecache = FileCache()
+
+        attempt = self.current_attempt
+        for log_chunk in filecache.logs_iterator(
+            ds_type, ds_root, stream, attempt, *self.path_components
+        ):
+            for line in merge_logs([blob for _, blob in log_chunk]):
+                msg = to_unicode(line.msg) if as_unicode else line.msg
+                yield line.utc_tstamp, msg
+
     def loglines(
         self,
         stream: str,
