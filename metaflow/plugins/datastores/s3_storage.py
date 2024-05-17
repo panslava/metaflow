@@ -151,7 +151,7 @@ class S3Storage(DataStoreStorage):
 
         return CloseAfterUse(iter_results(), closer=s3)
 
-    def stream_bytes(self, paths, chunk_size=1024):
+    def stream_bytes(self, paths, chunk_size=2**1024):
         if len(paths) == 0:
             return CloseAfterUse(iter([]))
 
