@@ -90,7 +90,11 @@ class FileCache(object):
         task_ds = ds.get_task_datastore(
             run_id, step_name, task_id, data_metadata={"objects": {}, "info": {}}
         )
-        return task_ds.stream_logs(LOG_SOURCES, stream, attempt_override=attempt)
+
+        return {
+            source: task_ds.stream_logs([source], stream, attempt_override=attempt)
+            for source in LOG_SOURCES
+        }
 
     def get_log_legacy(
         self, ds_type, location, logtype, attempt, flow_name, run_id, step_name, task_id

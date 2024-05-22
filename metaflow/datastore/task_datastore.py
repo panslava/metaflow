@@ -847,7 +847,6 @@ class TaskDataStore(object):
             paths.keys(),
             add_attempt=False,
         ):
-            # TODO: Add line counts so we can yield a given range.
             if res is None:
                 # yield the last buffered line
                 yield [
@@ -859,7 +858,8 @@ class TaskDataStore(object):
                 val = buffered + v if v is not None else buffered
                 lines = val.decode("utf-8").split("\n")
                 if len(lines) > 2:
-                    output[k] = "\n".join(lines[:-1]).encode("utf-8")
+                    # print("more than two lines of logs!")
+                    output[k] = ("\n".join(lines[:-1])).encode("utf-8")
                     buffer[k] = lines[-1].encode("utf-8")
                 elif len(lines) == 1 and val:
                     # the chunk did not contain a newline,
